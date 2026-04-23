@@ -36,6 +36,18 @@ python3 scripts/publish_to_lark.py \
     {
       "name": "90_图表数据_月度趋势",
       "csv": "./outputs/90_图表数据_月度趋势.csv"
+    },
+    {
+      "name": "97_图表注册表",
+      "csv": "./outputs/97_图表注册表.csv"
+    },
+    {
+      "name": "98_分析章节规划",
+      "csv": "./outputs/98_分析章节规划.csv"
+    },
+    {
+      "name": "99_结论索引",
+      "csv": "./outputs/99_结论索引.csv"
     }
   ],
   "dashboard": {
@@ -54,17 +66,35 @@ python3 scripts/publish_to_lark.py \
   },
   "doc": {
     "title": "数据分析报告",
-    "markdown": "./outputs/report.md",
-    "images": [
+    "blocks": [
       {
+        "id": "RB00",
+        "type": "markdown",
+        "file": "./outputs/00_摘要.md"
+      },
+      {
+        "id": "RB01_TEXT",
+        "type": "markdown",
+        "file": "./outputs/SEC01_经营基线.md"
+      },
+      {
+        "id": "RB01_CHART",
+        "type": "image",
         "file": "./outputs/charts/monthly.png",
-        "caption": "图：月度有效销售额趋势（来源：Base 表 90_图表数据_月度趋势）"
+        "caption": "图：月度有效销售额趋势（来源：Base 表 90_图表数据_月度趋势；仪表盘组件：月度有效销售额趋势）"
+      },
+      {
+        "id": "RB90",
+        "type": "markdown",
+        "file": "./outputs/90_行动计划.md"
       }
     ]
   },
   "summary_path": "./outputs/publish_summary.json"
 }
 ```
+
+推荐使用 `doc.blocks`。脚本会按块顺序创建或追加 Markdown，并把图片插入到相邻位置。旧格式 `doc.markdown` + `doc.images` 仍可使用，但图片会统一追加到文档末尾，不适合“一节分析配一张图”的报告。
 
 ## 字段映射规则
 
@@ -123,8 +153,18 @@ python3 scripts/publish_to_lark.py \
 处理：
 
 - 保留 state 重跑，脚本会跳过已创建文档并继续插图。
+- 使用 `doc.blocks` 时，脚本会记录每个 `RBxx` 的发布状态；修复图片后重跑会从未完成块继续。
 - 若图片为 SVG，脚本会在 macOS 上尝试用 `sips` 转 PNG。
 - 如果仍失败，先发布文档和 Base，并在最终回复里说明本地图片路径。
+
+### 文档分块发布中断
+
+处理：
+
+- 不要修改已经发布的块 ID，保持 manifest 中 `doc.blocks` 顺序稳定。
+- 修复缺失的 Markdown 或图片文件后重跑同一命令。
+- 如果需要补充新章节，追加新的 `RBxx` 到 `doc.blocks` 末尾；避免在已发布块中间插入，以免文档顺序和 state 难以核对。
+- 若必须重排报告，先确认用户接受创建新文档，或手工清理旧文档后再重新发布。
 
 ### 权限不足
 
@@ -142,5 +182,6 @@ python3 scripts/publish_to_lark.py \
 - 每张表的行数
 - `dashboard.dashboard_id`
 - `doc.doc_id` 和 `doc.doc_url`
+- 使用 `doc.blocks` 时，每个 `RBxx` 的发布状态
 
 最终回复用户时返回飞书文档链接、Base 链接、仪表盘组件名称、关键结论和任何失败/跳过项。

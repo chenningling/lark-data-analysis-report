@@ -368,17 +368,57 @@ def convert_image_if_needed(ctx: Context, image_path: Path) -> Path:
     return image_path
 
 
+def doc_blocks(doc_cfg: dict[str, Any]) -> list[dict[str, Any]]:
+    blocks = doc_cfg.get("blocks") or []
+    if not isinstance(blocks, list):
+        raise PublishError("doc.blocks 必须是数组。")
+    return blocks
+
+
+def block_key(block: dict[str, Any], index: int) -> str:
+    return str(block.get("id") or f"block_{index + 1:03d}")
+
+
+def markdown_arg_for_file(ctx: Context, source: Path, key: str) -> str:
+    if not source.exists():
+        raise PublishError(f"Markdown 文件不存在：{source}")
+    target = ctx.temp_dir / (key + ".md")
+    target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    return rel_for_cli(ctx, target)
+
+
+def image_arg_for_file(ctx: Context, source: Path) -> str:
+    if not source.exists():
+        raise PublishError(f"图表图片不存在：{source}")
+    usable = convert_image_if_needed(ctx, source)
+    if usable.resolve().is_relative_to(ctx.cwd.resolve()):
+        return rel_for_cli(ctx, usable)
+    copied = ctx.temp_dir / usable.name
+    shutil.copyfile(usable, copied)
+    return rel_for_cli(ctx, copied)
+
+
 def create_doc(ctx: Context) -> str | None:
     doc_cfg = ctx.manifest.get("doc")
     if not doc_cfg:
         return None
     if ctx.state.get("doc", {}).get("doc_id"):
         return ctx.state["doc"]["doc_id"]
-    markdown_path = resolve_path(ctx, doc_cfg["markdown"])
-    if not markdown_path.exists():
-        raise PublishError(f"报告 Markdown 不存在：{markdown_path}")
-    markdown_tmp = ctx.temp_dir / "report.md"
-    markdown_tmp.write_text(markdown_path.read_text(encoding="utf-8"), encoding="utf-8")
+    blocks = doc_blocks(doc_cfg)
+    first_block_key: str | None = None
+    if blocks:
+        first_block = blocks[0]
+        if first_block.get("type", "markdown") == "markdown":
+            first_block_key = block_key(first_block, 0)
+            markdown_file = resolve_path(ctx, first_block["file"])
+            markdown_arg = markdown_arg_for_file(ctx, markdown_file, first_block_key)
+        else:
+            fallback = ctx.temp_dir / "report.md"
+            fallback.write_text("## 报告\n\n", encoding="utf-8")
+            markdown_arg = rel_for_cli(ctx, fallback)
+    else:
+        markdown_path = resolve_path(ctx, doc_cfg["markdown"])
+        markdown_arg = markdown_arg_for_file(ctx, markdown_path, "report")
     args = [
         "lark-cli",
         "docs",
@@ -388,7 +428,7 @@ def create_doc(ctx: Context) -> str | None:
         "--title",
         doc_cfg["title"],
         "--markdown",
-        f"@{rel_for_cli(ctx, markdown_tmp)}",
+        f"@{markdown_arg}",
     ]
     for key, flag in [("folder_token", "--folder-token"), ("wiki_node", "--wiki-node"), ("wiki_space", "--wiki-space")]:
         if doc_cfg.get(key):
@@ -402,30 +442,90 @@ def create_doc(ctx: Context) -> str | None:
         doc_url = data.get("doc_url") or data.get("url") or ""
         if not doc_id:
             raise PublishError(f"创建文档后未取得 doc_id：{result}")
-    ctx.state["doc"] = {"doc_id": doc_id, "doc_url": doc_url, "images": {}}
+    doc_state = {"doc_id": doc_id, "doc_url": doc_url, "images": {}, "blocks": {}}
+    if first_block_key:
+        doc_state["blocks"][first_block_key] = {"published": True, "type": "markdown"}
+    ctx.state["doc"] = doc_state
     save_state(ctx)
     return doc_id
+
+
+def append_markdown_block(ctx: Context, doc_id: str, block: dict[str, Any], key: str) -> None:
+    source = resolve_path(ctx, block["file"])
+    markdown_arg = markdown_arg_for_file(ctx, source, key)
+    args = [
+        "lark-cli",
+        "docs",
+        "+update",
+        "--as",
+        ctx.identity,
+        "--doc",
+        doc_id,
+        "--mode",
+        "append",
+        "--markdown",
+        f"@{markdown_arg}",
+    ]
+    run_cli(args, ctx.cwd, ctx.dry_run)
+
+
+def insert_image_block(ctx: Context, doc_id: str, block: dict[str, Any], key: str) -> None:
+    source = resolve_path(ctx, block["file"])
+    file_arg = image_arg_for_file(ctx, source)
+    args = [
+        "lark-cli",
+        "docs",
+        "+media-insert",
+        "--as",
+        ctx.identity,
+        "--doc",
+        doc_id,
+        "--file",
+        file_arg,
+        "--align",
+        block.get("align", "center"),
+        "--caption",
+        block.get("caption", source.stem),
+    ]
+    run_cli(args, ctx.cwd, ctx.dry_run)
+
+
+def publish_doc_blocks(ctx: Context, doc_id: str | None) -> None:
+    doc_cfg = ctx.manifest.get("doc")
+    if not doc_cfg or not doc_id:
+        return
+    blocks = doc_blocks(doc_cfg)
+    if not blocks:
+        return
+    block_state = ctx.state.setdefault("doc", {}).setdefault("blocks", {})
+    for index, block in enumerate(blocks):
+        key = block_key(block, index)
+        if block_state.get(key, {}).get("published"):
+            continue
+        block_type = block.get("type", "markdown")
+        if block_type == "markdown":
+            append_markdown_block(ctx, doc_id, block, key)
+        elif block_type == "image":
+            insert_image_block(ctx, doc_id, block, key)
+        else:
+            raise PublishError(f"不支持的 doc.blocks 类型：{block_type}")
+        block_state[key] = {"published": True, "type": block_type}
+        save_state(ctx)
 
 
 def insert_images(ctx: Context, doc_id: str | None) -> None:
     doc_cfg = ctx.manifest.get("doc")
     if not doc_cfg or not doc_id:
         return
+    if doc_cfg.get("blocks"):
+        return
     image_state = ctx.state.setdefault("doc", {}).setdefault("images", {})
     for image in doc_cfg.get("images", []):
         source = resolve_path(ctx, image["file"])
-        if not source.exists():
-            raise PublishError(f"图表图片不存在：{source}")
         key = image.get("caption") or source.name
         if image_state.get(key, {}).get("inserted"):
             continue
-        usable = convert_image_if_needed(ctx, source)
-        if usable.resolve().is_relative_to(ctx.cwd.resolve()):
-            file_arg = rel_for_cli(ctx, usable)
-        else:
-            copied = ctx.temp_dir / usable.name
-            shutil.copyfile(usable, copied)
-            file_arg = rel_for_cli(ctx, copied)
+        file_arg = image_arg_for_file(ctx, source)
         args = [
             "lark-cli",
             "docs",
@@ -463,8 +563,18 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
     for table in manifest.get("tables", []):
         if not table.get("name") or not table.get("csv"):
             raise PublishError(f"表配置必须包含 name 和 csv：{table}")
-    if manifest.get("doc") and (not manifest["doc"].get("title") or not manifest["doc"].get("markdown")):
-        raise PublishError("doc 配置必须包含 title 和 markdown。")
+    if manifest.get("doc"):
+        doc_cfg = manifest["doc"]
+        if not doc_cfg.get("title"):
+            raise PublishError("doc 配置必须包含 title。")
+        if not doc_cfg.get("markdown") and not doc_cfg.get("blocks"):
+            raise PublishError("doc 配置必须包含 markdown 或 blocks。")
+        for index, block in enumerate(doc_cfg.get("blocks", [])):
+            block_type = block.get("type", "markdown")
+            if block_type not in {"markdown", "image"}:
+                raise PublishError(f"doc.blocks[{index}] 类型不支持：{block_type}")
+            if not block.get("file"):
+                raise PublishError(f"doc.blocks[{index}] 必须包含 file。")
 
 
 def main() -> None:
@@ -506,6 +616,7 @@ def main() -> None:
         dashboard_id = create_dashboard(ctx, base_token)
         create_dashboard_blocks(ctx, base_token, dashboard_id)
         doc_id = create_doc(ctx)
+        publish_doc_blocks(ctx, doc_id)
         insert_images(ctx, doc_id)
         write_summary(ctx)
     finally:
