@@ -101,12 +101,6 @@ lark-cli auth login
 请先确认我已经安装并配置飞书 CLI，然后从 https://github.com/chenningling/lark-data-analysis-report.git 安装 lark-data-analysis-report 这个 Skill。安装后帮我检查 Skill 是否可用。
 ```
 
-如果你的 Agent 支持指定技能目录，也可以说：
-
-```text
-请把 https://github.com/chenningling/lark-data-analysis-report.git 克隆到你的 skills 目录中，作为 lark-data-analysis-report 技能安装，并提醒我先安装 https://github.com/larksuite/cli.git 里的飞书 CLI。
-```
-
 ## 安装方式二：手动 clone 到 Agent 技能目录
 
 先克隆项目：
@@ -120,9 +114,9 @@ git clone https://github.com/chenningling/lark-data-analysis-report.git
 常见示例：
 
 ```bash
-# Codex / OpenAI Agents 常见目录示例
-mkdir -p ~/.codex/skills
-cp -R lark-data-analysis-report ~/.codex/skills/
+# OpenClaw Skills 安装示例
+mkdir -p ~/.openclaw/skills
+cp -R lark-data-analysis-report ~/.openclaw/skills/
 ```
 
 如果你的 Agent 使用其他目录，例如工作区级 skills、插件级 skills 或企业统一技能包目录，请将整个项目目录复制过去，确保目录中保留 `SKILL.md`、`references/`、`scripts/` 和 `package.json`。
@@ -205,4 +199,4 @@ python3 scripts/publish_to_lark.py \
 
 ## 许可
 
-开源前请根据你的发布计划补充 LICENSE 文件，例如 MIT、Apache-2.0 或其他许可证。
+本项目采用 [MIT License](./LICENSE)。
