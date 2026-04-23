@@ -33,26 +33,29 @@
 6. 使用同一批表数据渲染本地图表图片。
 7. 将图片插入飞书文档对应章节，并在图片说明中引用 Base 表和仪表盘组件。
 
-## 辅助脚本
+## ECharts PNG 渲染
 
-`scripts/render_chart_image.py` 可根据 JSON 规格渲染简单图表：
-
-```bash
-python3 scripts/render_chart_image.py --spec chart-spec.json --output chart.png
-```
-
-脚本会优先尝试使用 `pyecharts` + `snapshot-selenium`。如果不可用，则回退到 `matplotlib`。如果两种 PNG 渲染能力都不可用，可输出 `.svg`，使用脚本内置的标准库渲染器：
+正式报告固定使用 ECharts + Puppeteer/Chromium 渲染 PNG。该方案比 `node-canvas` 更适合开源和云端环境，因为不依赖 Cairo/Pango 等系统原生库，渲染结果也最接近浏览器中的 ECharts。
 
 ```bash
-python3 scripts/render_chart_image.py --spec chart-spec.json --output chart.svg
+npm install
+node scripts/check_chart_runtime.mjs
+node scripts/render_echarts_png.mjs --specs ./runs/<task>/chart_specs.json
 ```
 
-`matplotlib` 和 SVG 兜底渲染都会设置中文字体候选项，以便在运行环境具备 CJK 字体时正常显示中文标签。
+规则：
+
+- 每次换机器或首次使用，先运行 `node scripts/check_chart_runtime.mjs`。
+- 渲染脚本一次启动 Chromium，批量渲染全部图表，不要每张图启动一次浏览器。
+- Linux/容器环境使用脚本内置的 `--no-sandbox` 参数。
+- 中文字体候选链：`Noto Sans CJK SC`, `PingFang SC`, `Microsoft YaHei`, `SimHei`, `Arial Unicode MS`, `sans-serif`。
+- 如果依赖缺失，先安装依赖，不要静默降级到 PIL 或 SVG。正式报告的 `97_图表注册表` 中记录 `渲染方式 = ECharts PNG`。
 
 ## 图表规格
 
 ```json
 {
+  "id": "CH01",
   "title": "月度销售额趋势",
   "subtitle": "来源：Base 表 90_图表数据_月度销售额",
   "type": "line",
@@ -62,7 +65,8 @@ python3 scripts/render_chart_image.py --spec chart-spec.json --output chart.svg
   ],
   "y_label": "销售额",
   "source_table": "90_图表数据_月度销售额",
-  "dashboard_block": "月度销售额趋势"
+  "dashboard_block": "月度销售额趋势",
+  "output": "./outputs/charts/CH01_月度销售额趋势.png"
 }
 ```
 

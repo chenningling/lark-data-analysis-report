@@ -187,7 +187,10 @@ lark-cli docs +media-insert \
 完整发布流程优先使用：
 
 ```bash
-python3 scripts/publish_to_lark.py --manifest ./publish_manifest.json --cwd "$(pwd)"
+python3 scripts/prepare_analysis_package.py --input ./input.xlsx --goal "分析目标" --output ./runs/task
+node scripts/check_chart_runtime.mjs
+node scripts/render_echarts_png.mjs --specs ./runs/task/chart_specs.json
+python3 scripts/publish_to_lark.py --manifest ./runs/task/publish_manifest.json --cwd ./runs/task
 ```
 
 脚本会自动处理：

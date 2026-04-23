@@ -124,14 +124,15 @@
 
 ## Base 写入模式
 
-优先使用 `scripts/publish_to_lark.py` 发布，降低飞书接口细节导致的失败概率：
+优先使用标准脚本生成本地产物，再用发布脚本写入飞书：
 
-1. 在本地执行分析。
-2. 为每张过程表、结果表和结论表生成 CSV。
-3. 生成报告 Markdown 和图表图片。
-4. 生成 `publish_manifest.json`。
-5. 运行 `python3 scripts/publish_to_lark.py --manifest ./publish_manifest.json --cwd "$(pwd)"`。
-6. 如失败，保留 state 文件重跑；具体处理见 `references/recovery.md`。
+1. 运行 `scripts/prepare_analysis_package.py`，生成过程表 CSV、报告块、图表规格和 `publish_manifest.json`。
+2. 运行 `node scripts/check_chart_runtime.mjs` 检查 ECharts PNG 渲染环境。
+3. 运行 `node scripts/render_echarts_png.mjs --specs ./runs/<task>/chart_specs.json` 批量渲染图表。
+4. 运行 `python3 scripts/publish_to_lark.py --manifest ./runs/<task>/publish_manifest.json --cwd ./runs/<task>`。
+5. 如失败，保留 state 文件重跑；具体处理见 `references/recovery.md`。
+
+默认不要把全量原始明细复制进 Base。Base 记录数据字典、清洗记录、中间结果、图表数据和结论索引即可。只有用户明确要求逐行审计、全量源数据沉淀或把明细也放进飞书时，才生成并发布 `10_清洗后数据明细`。
 
 如果必须手工发布：
 

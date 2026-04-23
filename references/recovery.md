@@ -7,13 +7,22 @@
 先将分析结果整理成本地 CSV、Markdown、图片和发布清单：
 
 ```bash
+python3 scripts/prepare_analysis_package.py \
+  --input ./input.xlsx \
+  --goal "给出下个季度规划建议" \
+  --output ./runs/task
+
+node scripts/check_chart_runtime.mjs
+node scripts/render_echarts_png.mjs --specs ./runs/task/chart_specs.json
+
 python3 scripts/publish_to_lark.py \
-  --manifest ./publish_manifest.json \
-  --cwd "$(pwd)"
+  --manifest ./runs/task/publish_manifest.json \
+  --cwd ./runs/task
 ```
 
 脚本会：
 
+- 默认不把全量原始明细写入 Base；只写可复盘的过程摘要和结果表。
 - 在当前工作目录下创建 `.lark_publish_tmp/`，保证所有 `@file` 都是相对路径。
 - 创建 Base、表、记录、仪表盘、文档和图片。
 - 自动把 CSV 每 200 行分批写入。
@@ -32,6 +41,10 @@ python3 scripts/publish_to_lark.py \
     {
       "name": "00_任务规划",
       "csv": "./outputs/00_任务规划.csv"
+    },
+    {
+      "name": "01_数据字典",
+      "csv": "./outputs/01_数据字典.csv"
     },
     {
       "name": "90_图表数据_月度趋势",

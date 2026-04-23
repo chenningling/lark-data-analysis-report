@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+.env
+.env.*
+!.env.example
+
+# Test / type / packaging
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Local analysis runs (CSV / charts / manifest under runs/<task>/)
+runs/
+.lark_publish_tmp/
+
+# Publish resume state (machine-local, safe to regenerate)
+*.state.json
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+*~

@@ -1,0 +1,13 @@
+{
+  "name": "lark-data-analysis-report-runtime",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check:charts": "node scripts/check_chart_runtime.mjs",
+    "render:charts": "node scripts/render_echarts_png.mjs"
+  },
+  "dependencies": {
+    "echarts": "5.5.1",
+    "puppeteer": "24.15.0"
+  }
+}
