@@ -1,0 +1,6 @@
+interface:
+  display_name: "飞书数据分析报告"
+  short_description: "Excel 分析沉淀到飞书 Base 和云文档"
+  default_prompt: "使用 $lark-data-analysis-report 分析这些 Excel 文件，并发布一份可追溯的飞书可视化报告。"
+policy:
+  allow_implicit_invocation: true
