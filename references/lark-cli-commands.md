@@ -58,21 +58,23 @@ lark-cli base +table-create \
 lark-cli base +field-create \
   --base-token app_xxx \
   --table-id tbl_xxx \
-  --json '{"name":"销售额","type":"number","precision":2}'
+  --json '{"name":"销售额","type":"number"}'
 ```
 
 常用字段定义：
 
 ```json
 {"name":"名称","type":"text"}
-{"name":"数量","type":"number","precision":0}
-{"name":"金额","type":"number","precision":2}
+{"name":"数量","type":"number"}
+{"name":"金额","type":"number"}
 {"name":"日期","type":"date"}
 {"name":"状态","type":"select","multiple":false,"options":[{"name":"完成","hue":"Green","lightness":"Light"}]}
 {"name":"标签","type":"select","multiple":true,"options":[{"name":"重点","hue":"Red","lightness":"Light"}]}
 ```
 
 公式字段和查找引用字段需要更详细的指南；除非报告需要在 Base 内长期保留派生字段，否则通常更清晰的做法是在本地计算后写入结果表。
+
+> 稳定性提醒：当前 Base 字段创建接口不接受 `precision`。不要在字段 JSON 中传 `precision`，需要格式展示时后续在飞书界面或专门字段更新流程中处理。
 
 ## 批量创建记录
 
@@ -179,3 +181,21 @@ lark-cli docs +media-insert \
 ```
 
 `--doc` 使用 `doc_id` 或 `/docx/` 链接。不要把 `/wiki/` 链接直接传给 `docs +media-insert`。
+
+## 稳定发布脚本
+
+完整发布流程优先使用：
+
+```bash
+python3 scripts/publish_to_lark.py --manifest ./publish_manifest.json --cwd "$(pwd)"
+```
+
+脚本会自动处理：
+
+- `@file` 相对路径约束。
+- 字段 schema 清理。
+- 每批 200 行记录写入。
+- state 续跑。
+- SVG 到 PNG 的尽力转换。
+
+发布清单和失败恢复见 `references/recovery.md`。
